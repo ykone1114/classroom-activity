@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>染色体分裂推演器</title>
+<style>
+:root{--ink:#173a3a;--muted:#5d7b7b;--teal:#0d7c70;--teal-d:#085b52;--line:#d3e6e0;--amber:#b8791a;--red:#c9433f}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:linear-gradient(160deg,#f1f8f5 0%,#fafcf9 55%,#eef6f2 100%);color:var(--ink);font-family:"Microsoft YaHei","PingFang SC",sans-serif;min-height:100vh}
+.wrap{max-width:min(980px,96vw);margin:0 auto;padding:clamp(12px,2vh,20px) clamp(12px,2vw,24px) 28px}
+header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;border-bottom:1px solid var(--line);padding-bottom:12px}
+h1{font-size:clamp(17px,2.1vmin,22px);font-weight:500;margin:0;color:var(--teal-d);letter-spacing:.02em}
+.sub{font-size:clamp(11px,1.4vmin,13px);color:var(--muted)}
+.steps{display:flex;gap:6px;margin-top:12px}
+.step{flex:1;font-size:clamp(11px,1.4vmin,13px);color:var(--muted);padding:8px 4px;text-align:center;border-bottom:2px solid transparent;transition:.3s}
+.step.on{color:var(--teal-d);border-bottom-color:var(--teal);font-weight:500}
+.stage{position:relative;height:clamp(340px,48vh,460px);margin-top:14px;border:1px solid var(--line);border-radius:16px;background:#fff;overflow:hidden}
+.nucleus{position:absolute;left:50%;top:47%;transform:translate(-50%,-50%);width:min(250px,27%);height:min(250px,60%);min-height:220px;border:2px dashed #a4d3c6;border-radius:50%;background:#f2fbf7;transition:opacity .45s}
+.nucleus .lab{position:absolute;top:10px;left:0;right:0;text-align:center;font-size:clamp(11px,1.4vmin,13px);color:var(--muted)}
+.daughter{position:absolute;top:12%;width:29%;height:76%;border:2px dashed var(--line);border-radius:16px;background:#fbfefd;opacity:0;pointer-events:none;transition:opacity .45s,border-color .45s,background .45s}
+.daughter.show{opacity:1}
+.daughter.done{border-color:#5fbfa5;border-style:solid;background:#f0faf5}
+.daughter.bad{border-color:#e4a19e;background:#fff5f4}
+.daughter .cap{position:absolute;top:9px;left:0;right:0;text-align:center;font-size:clamp(12px,1.5vmin,14px);color:var(--muted)}
+.daughter.L{left:5%}.daughter.R{right:5%}
+.chr{position:absolute;width:16px;border-radius:8px;box-shadow:inset -2px -2px 4px rgba(0,0,0,.12),inset 2px 2px 3px rgba(255,255,255,.32),0 1px 3px rgba(0,0,0,.13)}
+.xchr{position:absolute;width:52px;height:66px;transition:opacity .3s;animation:spawn .5s ease-out}
+.xchr .arm{position:absolute;width:12px;height:58px;border-radius:6px;left:20px;top:3px;box-shadow:inset -2px -2px 3px rgba(0,0,0,.12),inset 2px 2px 2px rgba(255,255,255,.3)}
+.xchr .arm.a{transform:rotate(34deg)}
+.xchr .arm.b{transform:rotate(-34deg)}
+.xchr .centro{position:absolute;width:13px;height:13px;border-radius:50%;background:#2f5474;left:19.5px;top:26px;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.ct{position:absolute;width:56px;height:60px;touch-action:none;user-select:none;cursor:grab;transition:left .35s ease,top .35s ease;filter:drop-shadow(0 1px 2px rgba(0,0,0,.16))}
+.ct svg{display:block;width:56px;height:60px}
+.ct.drag{transition:none;z-index:30;cursor:grabbing;filter:drop-shadow(0 5px 9px rgba(0,0,0,.26))}
+.ct.pop{animation:pop .38s ease-out}
+.ct.err svg circle{stroke:#c9433f;stroke-width:3}
+.ct.err{filter:drop-shadow(0 0 5px rgba(201,67,63,.6));animation:shake .5s}
+.ct.ok svg circle{stroke:#1d9e75;stroke-width:3}
+@keyframes pop{0%{transform:scale(.72);opacity:.5}100%{transform:scale(1);opacity:1}}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+@keyframes spawn{0%{transform:scale(.4);opacity:0}100%{transform:scale(1);opacity:1}}
+.controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+button{font-family:inherit;font-size:clamp(12px,1.5vmin,14px);min-height:44px;padding:10px 16px;border:1px solid var(--teal);background:#fff;color:var(--teal-d);border-radius:10px;cursor:pointer;transition:.2s}
+button:hover{background:#eaf6f2}
+button.active{background:var(--teal);color:#fff}
+button.ghost{border-color:#c3c3c3;color:#777}
+button.warn{border-color:var(--amber);color:#854f0b;background:#fffaf0}
+button.warn:hover{background:#fdf0d5}
+.readout{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;padding:12px 15px;background:#eaf6f2;border-radius:10px;font-size:clamp(12px,1.5vmin,14px);line-height:1.6}
+.readout b{color:var(--teal-d);font-size:1.18em}
+.hint{margin-top:12px;min-height:48px;padding:11px 14px;border-left:4px solid var(--amber);background:#fff8ec;color:#6b4a12;font-size:clamp(12px,1.5vmin,14px);line-height:1.65}
+.hint.ok{border-left-color:var(--teal);background:#eaf6f2;color:var(--teal-d)}
+.hint.bad{border-left-color:var(--red);background:#fdf1f0;color:#8f2d29}
+.verdict{display:none;margin-top:10px;padding:14px 16px;border-radius:12px;font-size:clamp(13px,1.6vmin,15px);line-height:1.75}
+.verdict.show{display:block}
+.verdict.ok{background:#eaf6f2;border:1px solid #9dd9c3;color:var(--teal-d)}
+.verdict.bad{background:#fdf1f0;border:1px solid #eec4c1;color:#8f2d29}
+.verdict b{font-weight:500}
+.verdict ul{margin:6px 0 0;padding-left:20px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>染色体分裂推演器</h1>
+  <span class="sub">初中生物 · 细胞分裂 · 亲手完成"复制 → 均分"，完成后统一检测</span>
+</header>
+<div class="steps">
+  <div class="step on" id="s0">① 复制前</div>
+  <div class="step" id="s1">② 复制加倍</div>
+  <div class="step" id="s2">③ 亲手均分</div>
+  <div class="step" id="s3">④ 检测判定</div>
+</div>
+<div class="stage" id="stage">
+  <div class="nucleus" id="nucleus"><span class="lab">母细胞 · 细胞核</span></div>
+  <div class="daughter L" id="cellL"><span class="cap">子细胞 A</span></div>
+  <div class="daughter R" id="cellR"><span class="cap">子细胞 B</span></div>
+</div>
+<div class="controls">
+  <button id="b0">① 复制前</button>
+  <button id="b1">② 复制加倍</button>
+  <button id="b2">③ 我来均分（拖拽）</button>
+  <button id="b3" class="warn">④ 提交检测</button>
+  <button id="reset" class="ghost" style="margin-left:auto">重置</button>
+</div>
+<div class="readout" id="readout"></div>
+<div class="verdict" id="verdict"></div>
+<div class="hint" id="hint"></div>
+</div>
+<script>
+(function(){
+var N=4;
+var colors=['#5b8fc7','#d9835c','#79a85a','#9c7bb9'];
+var stage=document.getElementById('stage');
+var nucleus=document.getElementById('nucleus');
+var cellL=document.getElementById('cellL'),cellR=document.getElementById('cellR');
+var hintEl=document.getElementById('hint'),readout=document.getElementById('readout'),verdict=document.getElementById('verdict');
+var b0=document.getElementById('b0'),b1=document.getElementById('b1'),b2=document.getElementById('b2'),b3=document.getElementById('b3'),reset=document.getElementById('reset');
+var state=0,bars=[],xs=[],cts=[],drag=null,tries=0,checked=false;
+
+function say(t,ok,bad){hintEl.textContent=t;hintEl.className='hint'+(ok?' ok':(bad?' bad':''));}
+function W(){return stage.clientWidth;}
+function CY(){return stage.clientHeight*0.47;}
+function makeBar(pair){
+  var el=document.createElement('div');el.className='chr';el.style.background=colors[pair];
+  el.style.height=(54+pair*4)+'px';stage.appendChild(el);return {el:el,pair:pair};
+}
+function makeX(pair){
+  var el=document.createElement('div');el.className='xchr';
+  var a=document.createElement('div');a.className='arm a';a.style.background=colors[pair];
+  var b=document.createElement('div');b.className='arm b';b.style.background=colors[pair];
+  var c=document.createElement('div');c.className='centro';
+  el.appendChild(a);el.appendChild(b);el.appendChild(c);stage.appendChild(el);return {el:el,pair:pair};
+}
+function vSVG(pair,copy){
+  var col=colors[pair],a1,a2,dot;
+  if(copy===0){
+    a1='<line x1="44" y1="30" x2="9" y2="7" stroke="'+col+'" stroke-width="11" stroke-linecap="round"/>';
+    a2='<line x1="44" y1="30" x2="9" y2="53" stroke="'+col+'" stroke-width="11" stroke-linecap="round"/>';
+    dot='<circle cx="44" cy="30" r="7" fill="#2f5474" stroke="#fff" stroke-width="2"/>';
+  }else{
+    a1='<line x1="12" y1="30" x2="47" y2="7" stroke="'+col+'" stroke-width="11" stroke-linecap="round"/>';
+    a2='<line x1="12" y1="30" x2="47" y2="53" stroke="'+col+'" stroke-width="11" stroke-linecap="round"/>';
+    dot='<circle cx="12" cy="30" r="7" fill="#2f5474" stroke="#fff" stroke-width="2"/>';
+  }
+  return '<svg viewBox="0 0 56 60" xmlns="http://www.w3.org/2000/svg">'+a1+a2+dot+'</svg>';
+}
+function makeCT(pair,copy){
+  var el=document.createElement('div');el.className='ct';el.innerHTML=vSVG(pair,copy);
+  el.dataset.pair=pair;el.dataset.copy=copy;stage.appendChild(el);
+  return {el:el,pair:pair,copy:copy,zone:'center',slot:-1};
+}
+function barPos(p){return {x:W()/2-78+p.pair*52-8,y:CY()-28};}
+function xPos(p){return {x:W()/2-78+p.pair*52-26,y:CY()-33};}
+function centerSlot(pair,copy){return {x:W()/2+(copy===0?-51:-5),y:CY()-100+pair*54};}
+function cellSlotPos(zone,slot){
+  var w=W(),h=stage.clientHeight;
+  var box=(zone==='L'?cellL:cellR).getBoundingClientRect(),sr=stage.getBoundingClientRect();
+  var left=box.left-sr.left,top=box.top-sr.top,cw=box.width,ch=box.height;
+  var col=slot%3,row=Math.floor(slot/3);
+  var gapY=(ch-108)/2;
+  return {x:left+cw*0.08+col*cw*0.30,y:top+40+row*gapY};
+}
+function posOf(c){return (c.zone==='L'||c.zone==='R')?cellSlotPos(c.zone,c.slot):centerSlot(c.pair,c.copy);}
+function placeAt(c){var p=posOf(c);c.el.style.left=p.x+'px';c.el.style.top=p.y+'px';}
+function clearMarks(){cts.forEach(function(c){c.el.classList.remove('err','ok');});cellL.classList.remove('bad');cellR.classList.remove('bad');}
+function readable(){
+  if(state===0){readout.innerHTML='母细胞：<b>4</b> 条染色体，形态各不相同';}
+  else if(state===1){readout.innerHTML='复制后：每条染色体呈 <b>X</b> 形，含两条相同的染色单体，由着丝粒相连';}
+  else if(state===2){readout.innerHTML='任务：<b>按照你们的想法</b>将每条分别拖进子细胞 A 和 B 中；拖完再点「提交检测」';}
+  else{
+    var a=cts.filter(function(c){return c.zone==='L';}).length,b=cts.filter(function(c){return c.zone==='R';}).length;
+    readout.innerHTML='子细胞 A：<b>'+a+'</b> 条　·　子细胞 B：<b>'+b+'</b> 条　·　母细胞：<b>4</b> 条';
+  }
+}
+function render(){
+  bars.forEach(function(p){p.el.style.display=state===0?'block':'none';if(state===0){var q=barPos(p);p.el.style.left=q.x+'px';p.el.style.top=q.y+'px';}});
+  xs.forEach(function(p){p.el.style.display=state===1?'block':'none';if(state===1){var q=xPos(p);p.el.style.left=q.x+'px';p.el.style.top=q.y+'px';}});
+  cts.forEach(function(c){var show=state>=2;c.el.style.display=show?'block':'none';c.el.style.cursor=state===2?'grab':'default';if(show)placeAt(c);});
+  nucleus.style.opacity=(state===0||state===1)?1:0;
+  cellL.classList.toggle('show',state>=2);cellR.classList.toggle('show',state>=2);
+  for(var i=0;i<4;i++){document.getElementById('s'+i).classList.toggle('on',i===state);}
+  [b0,b1,b2,b3].forEach(function(b,i){b.classList.toggle('active',i===state);});
+  readable();
+}
+function setState(s){state=s;render();}
+function init(){
+  bars.forEach(function(c){c.el.remove();});bars=[];xs.forEach(function(c){c.el.remove();});xs=[];cts.forEach(function(c){c.el.remove();});cts=[];
+  for(var p=0;p<N;p++){bars.push(makeBar(p));xs.push(makeX(p));cts.push(makeCT(p,0));cts.push(makeCT(p,1));}
+  cellL.classList.remove('done','bad');cellR.classList.remove('done','bad');
+  verdict.className='verdict';verdict.textContent='';tries=0;checked=false;
+  setState(0);say('看母细胞：4 条形态不同的染色体。点「② 复制加倍」，看它们怎么复制。');
+}
+b0.onclick=function(){init();};
+b1.onclick=function(){setState(1);say('复制完成：每条染色体呈 X 形，两条相同的染色单体由着丝粒相连，已是原来的两倍。');};
+b2.onclick=function(){setState(2);verdict.className='verdict';clearMarks();say('着丝粒分开成两条 V 形染色单体。请按照你们的想法将每条分别拖进子细胞 A 和 B 中——全部放好后点「提交检测」，系统统一判定。');};
+b3.onclick=function(){check();};
+reset.onclick=function(){init();};
+
+var REASONS={
+  same:{name:'同源未分',tip:'颜色相同的两条染色体来自同一次复制，是一对"双胞胎"，必须一个去子细胞A、一个去子细胞B。下次先找同色的两条，把它们分开放。'},
+  num:{name:'数目不等',tip:'分裂是"平均分配"：母细胞4条染色体复制后，两个子细胞必须各有4条。下次放完数一数，两个细胞要一样多。'},
+  mid:{name:'未完成',tip:'还有染色体留在中间没有放进子细胞。下次要把8条染色单体全部拖进A或B，再提交检测。'}
+};
+function check(){
+  tries++;checked=true;clearMarks();
+  var left=cts.filter(function(c){return c.zone==='L';}),right=cts.filter(function(c){return c.zone==='R';});
+  var mid=cts.filter(function(c){return c.zone==='center';});
+  var cats={};
+
+  if(mid.length>0){cats.mid=1;mid.forEach(function(c){c.el.classList.add('err');});}
+  var sameBad=0;
+  [['L',left],['R',right]].forEach(function(pairArr){
+    var arr=pairArr[1];
+    for(var p=0;p<N;p++){
+      var s=arr.filter(function(c){return c.pair===p;});
+      if(s.length>1){sameBad=1;s.forEach(function(c){c.el.classList.add('err');});}
+    }
+  });
+  if(sameBad)cats.same=1;
+  if(left.length!==4||right.length!==4){
+    cats.num=1;
+    cellL.classList.toggle('bad',left.length!==4);cellR.classList.toggle('bad',right.length!==4);
+  }
+
+  var keys=Object.keys(cats);
+  if(keys.length===0){
+    cts.forEach(function(c){c.el.classList.add('ok');});
+    cellL.classList.add('done');cellR.classList.add('done');
+    setState(3);
+    verdict.className='verdict ok show';
+    verdict.innerHTML='<b>✓ 检测通过！</b><br>两个子细胞各有 4 条，颜色、长短与母细胞一致。染色体<b>先复制加倍，再平均分配</b>，所以前后代染色体数目和形态保持一样。';
+    say('检测通过！这就是遗传信息能稳定传递的原因。',true);
+    return;
+  }
+  var order=['same','num','mid'];
+  order.sort(function(a,b){return (cats[b]?1:0)-(cats[a]?1:0);});
+  var html='<b>✗ 第 '+tries+' 次检测：还没有完全正确。</b>根据你摆的情况，属于以下错误原因：';
+  order.forEach(function(k){
+    if(!cats[k])return;
+    html+='<div class="item '+(k==='same'?'warn':'')+'" style="margin:8px 0;padding:9px 12px;border-left:3px solid #d9605b;background:#fff5f4;border-radius:0 8px 8px 0">'
+       + '<b style="color:#8f2d29">'+REASONS[k].name+'</b>：'+REASONS[k].tip+'</div>';
+  });
+  verdict.className='verdict bad show';
+  verdict.innerHTML=html+(tries>=2?'<br>提示：把<b>同色</b>的两条分到不同细胞，每个细胞各放<b>4</b> 条。':'');
+  say('请按上面的原因调整（可再次拖动已放入的染色体），改完再点「提交检测」。',false,true);
+}
+
+function zoneOfPoint(px,py){
+  var w=W(),h=stage.clientHeight;
+  var inL=px>=w*0.05&&px<=w*0.34,inR=px>=w*0.66&&px<=w*0.95,inY=py>=h*0.10&&py<=h*0.94;
+  if(inY&&inL)return 'L';if(inY&&inR)return 'R';return 'center';
+}
+function nearestSlot(zone,px,py){
+  var box=(zone==='L'?cellL:cellR).getBoundingClientRect(),sr=stage.getBoundingClientRect();
+  var rx=(px+sr.left-box.left)/box.width,ry=(py+sr.top-box.top)/box.height;
+  var col=Math.max(0,Math.min(2,Math.floor((rx-0.08)/0.29)));
+  var row=Math.max(0,Math.min(2,Math.floor((ry-0.12)/0.30)));
+  return row*3+col;
+}
+function toCenter(c){c.zone='center';c.slot=-1;}
+
+stage.addEventListener('pointerdown',function(e){
+  if(state!==2)return;
+  var el=e.target.closest('.ct');if(!el)return;
+  var c=cts.filter(function(x){return x.el===el;})[0];
+  drag={c:c,sx:e.clientX,sy:e.clientY,ox:parseFloat(el.style.left),oy:parseFloat(el.style.top),oz:c.zone,os:c.slot};
+  el.classList.remove('pop','err','ok');el.classList.add('drag');
+  if(checked)verdict.className='verdict';
+  el.setPointerCapture(e.pointerId);
+});
+function clampToCell(zone,x,y){
+  var box=(zone==='L'?cellL:cellR).getBoundingClientRect(),sr=stage.getBoundingClientRect();
+  var minX=box.left-sr.left+8,maxX=box.right-sr.left-56-8;
+  var minY=box.top-sr.top+34,maxY=box.bottom-sr.top-60-8;
+  return {x:Math.max(minX,Math.min(maxX,x)),y:Math.max(minY,Math.min(maxY,y))};
+}
+stage.addEventListener('pointermove',function(e){
+  if(!drag)return;
+  var rawX=drag.ox+e.clientX-drag.sx,rawY=drag.oy+e.clientY-drag.sy;
+  var zone=(rawX+28)<W()/2?'L':'R';
+  var p=clampToCell(zone,rawX,rawY);
+  drag.c.el.style.left=p.x+'px';drag.c.el.style.top=p.y+'px';
+  drag.hintZone=zone;
+});
+stage.addEventListener('pointerup',function(e){
+  if(!drag)return;
+  var c=drag.c,el=c.el;el.classList.remove('drag');
+  var w=W(),moved=Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy);
+  var px=parseFloat(el.style.left)+28,py=parseFloat(el.style.top)+30;
+  if(moved<8){placeAt(c);return;}
+  var zone=drag.hintZone||((px<W()/2)?'L':'R');
+  var slot=nearestSlot(zone,px,py);
+  var occupant=cts.filter(function(o){return o.zone===zone&&o.slot===slot&&o!==c;})[0];
+  if(occupant){
+    if(drag.oz==='L'||drag.oz==='R'){occupant.zone=drag.oz;occupant.slot=drag.os;}
+    else{toCenter(occupant);}
+    placeAt(occupant);
+  }
+  c.zone=zone;c.slot=slot;placeAt(c);el.classList.add('pop');
+  drag=null;
+});
+window.addEventListener('resize',function(){render();});
+init();
+})();
+</script>
+</body>
+</html>

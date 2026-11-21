@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>课堂活动 · 细胞的分裂与分化</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:#eef2f5;font-family:"Microsoft YaHei","PingFang SC",sans-serif;height:100vh;display:flex;flex-direction:column}
+header{background:linear-gradient(120deg,#C2185B,#E91E63);color:#fff;padding:10px 16px;display:flex;align-items:center;gap:14px;flex:none}
+header h1{font-size:clamp(15px,2.2vw,20px);margin:0;font-weight:500;flex:1}
+.tabs{display:flex;gap:8px}
+.tab{border:1px solid rgba(255,255,255,.6);background:rgba(255,255,255,.15);color:#fff;border-radius:10px;padding:9px 16px;font-size:14px;cursor:pointer;min-height:42px;transition:.2s}
+.tab.on{background:#fff;color:#C2185B;font-weight:500}
+main{flex:1;position:relative;overflow:hidden}
+iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:none;background:#fff}
+iframe.on{display:block}
+.tip{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.62);color:#fff;font-size:12px;padding:7px 14px;border-radius:16px;pointer-events:none;z-index:9;transition:opacity 3s}
+</style>
+</head>
+<body>
+<header>
+  <h1>课堂活动 · 细胞的分裂与分化</h1>
+  <div class="tabs">
+    <button class="tab on" id="t1" onclick="show(1)">① 染色体推演器</button>
+    <button class="tab" id="t2" onclick="show(2)">② 细胞大小模拟器</button>
+  </div>
+</header>
+<main>
+  <iframe id="f1" class="on" src="chromosome.html" title="染色体推演器"></iframe>
+  <iframe id="f2" src="cell-size.html" title="细胞大小模拟器"></iframe>
+</main>
+<div class="tip" id="tip">切换上方标签，在程序之间来回</div>
+<script>
+function show(n){
+  for(var i=1;i<=2;i++){
+    document.getElementById('t'+i).classList.toggle('on',i===n);
+    document.getElementById('f'+i).classList.toggle('on',i===n);
+  }
+}
+if(location.hash==='#sv')show(2);
+window.addEventListener('hashchange',function(){show(location.hash==='#sv'?2:1);});
+setTimeout(function(){var t=document.getElementById('tip');if(t)t.style.opacity='0';},3500);
+</script>
+</body>
+</html>
